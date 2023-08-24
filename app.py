@@ -81,6 +81,7 @@ def simulate(w, request_retention=0.9, deck_size=10000, learn_span=100, max_cost
 
 def interface_func(weights: str, learning_time: int, learn_span: int, deck_size: int, max_ivl: int, recall_cost: int, forget_cost: int, learn_cost: int,
                    progress=gr.Progress(track_tqdm=True)):
+    plt.close('all')
     np.random.seed(42)
     w = list(map(lambda x: float(x.strip()), weights.split(',')))
     max_cost_perday = learning_time * 60
