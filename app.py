@@ -25,7 +25,7 @@ def simulate(w, request_retention=0.9, deck_size=10000, learn_span=100, max_cost
         if response == 1:
             return s * (1 + np.exp(w[8]) * (11 - d) * np.power(s, -w[9]) * (np.exp((1 - r) * w[10]) - 1))
         else:
-            return np.minimum(w[11] * np.power(d, -w[12]) * (np.power(s + 1, w[13]) - 1) * np.exp((1 - r) * w[14]), s)
+            return np.maximum(0.1, np.minimum(w[11] * np.power(d, -w[12]) * (np.power(s + 1, w[13]) - 1) * np.exp((1 - r) * w[14]), s))
 
     for today in tqdm(range(learn_span)):
         has_learned = card_table[col["stability"]] > 1e-10
