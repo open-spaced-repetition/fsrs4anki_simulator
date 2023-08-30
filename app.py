@@ -83,6 +83,7 @@ def interface_func(weights: str, learning_time: int, learn_span: int, deck_size:
                    progress=gr.Progress(track_tqdm=True)):
     plt.close('all')
     np.random.seed(42)
+    weights = weights.replace('[', '').replace(']', '')
     w = list(map(lambda x: float(x.strip()), weights.split(',')))
     max_cost_perday = learning_time * 60
 
