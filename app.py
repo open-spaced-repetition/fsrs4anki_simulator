@@ -10,6 +10,7 @@ columns = ["difficulty", "stability", "retrievability", "delta_t",
            "reps", "lapses", "last_date", "due", "ivl", "cost", "rand"]
 col = {key: i for i, key in enumerate(columns)}
 
+first_rating_prob = np.array([0.15, 0.2, 0.6, 0.05])
 
 def simulate(w, request_retention=0.9, deck_size=10000, learn_span=100, max_cost_perday=200, max_ivl=36500, recall_cost=10, forget_cost=30, learn_cost=10):
     card_table = np.zeros((len(columns), deck_size))
@@ -21,11 +22,14 @@ def simulate(w, request_retention=0.9, deck_size=10000, learn_span=100, max_cost
     learn_cnt_per_day = np.zeros(learn_span)
     memorized_cnt_per_day = np.zeros(learn_span)
 
-    def cal_next_recall_stability(s, r, d, response):
-        if response == 1:
-            return s * (1 + np.exp(w[8]) * (11 - d) * np.power(s, -w[9]) * (np.exp((1 - r) * w[10]) - 1))
-        else:
-            return np.maximum(0.1, np.minimum(w[11] * np.power(d, -w[12]) * (np.power(s + 1, w[13]) - 1) * np.exp((1 - r) * w[14]), s))
+    def stability_after_success(s, r, d, response):
+        hard_penalty = np.where(response == 1, w[15], 1)
+        easy_bonus = np.where(response == 3, w[16], 1)
+        return s * (1 + np.exp(w[8]) * (11 - d) * np.power(s, -w[9]) * (np.exp((1 - r) * w[10]) - 1) * hard_penalty * easy_bonus)
+    
+    def stability_after_failure(s, r, d):
+        return np.maximum(0.1, np.minimum(w[11] * np.power(d, -w[12]) * (np.power(s + 1, w[13]) - 1) * np.exp((1 - r) * w[14]), s))
+
 
     for today in tqdm(range(learn_span)):
         has_learned = card_table[col["stability"]] > 1e-10
@@ -48,11 +52,12 @@ def simulate(w, request_retention=0.9, deck_size=10000, learn_span=100, max_cost
         card_table[col["lapses"]][true_review & forget] += 1
         card_table[col["reps"]][true_review & ~forget] += 1
 
-        card_table[col["stability"]][true_review & forget] = cal_next_recall_stability(
-            card_table[col["stability"]][true_review & forget], card_table[col["retrievability"]][true_review & forget], card_table[col["difficulty"]][true_review & forget], 0)
+        card_table[col["stability"]][true_review & forget] = stability_after_failure(
+            card_table[col["stability"]][true_review & forget], card_table[col["retrievability"]][true_review & forget], card_table[col["difficulty"]][true_review & forget])
 
-        card_table[col["stability"]][true_review & ~forget] = cal_next_recall_stability(
-            card_table[col["stability"]][true_review & ~forget], card_table[col["retrievability"]][true_review & ~forget], card_table[col["difficulty"]][true_review & ~forget], 1)
+        review_ratings = np.random.choice([1, 2, 3], np.sum(true_review & ~forget), p=[0.3, 0.6, 0.1])
+        card_table[col["stability"]][true_review & ~forget] = stability_after_success(
+            card_table[col["stability"]][true_review & ~forget], card_table[col["retrievability"]][true_review & ~forget], card_table[col["difficulty"]][true_review & ~forget], review_ratings)
 
         card_table[col["difficulty"]][true_review & forget] = np.clip(
             card_table[col["difficulty"]][true_review & forget] + 2 * w[6], 1, 10)
@@ -62,7 +67,7 @@ def simulate(w, request_retention=0.9, deck_size=10000, learn_span=100, max_cost
         true_learn = need_learn & (
             np.cumsum(card_table[col["cost"]]) <= max_cost_perday)
         card_table[col["last_date"]][true_learn] = today
-        first_ratings = np.random.randint(0, 4, np.sum(true_learn))
+        first_ratings = np.random.choice(4, np.sum(true_learn), p=first_rating_prob)
         card_table[col["stability"]][true_learn] = np.choose(
             first_ratings, w[:4])
         card_table[col["difficulty"]][true_learn] = w[4] - \
