@@ -144,9 +144,9 @@ The simulator assumes that you spend the same amount of time on Anki every day.
 """
 
 with gr.Blocks() as demo:
-    with gr.Box():
+    with gr.Group():
         gr.Markdown(description)
-    with gr.Box():
+    with gr.Group():
         with gr.Row():
             with gr.Column():
                 weights = Textbox(label="Weights", lines=1,
